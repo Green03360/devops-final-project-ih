@@ -1,0 +1,34 @@
+# Kubernetes secrets
+*secret*.yaml
+*secret*.yml
+secrets/
+*.key
+*.pem
+*.crt
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Kubeconfig
+kubeconfig
+.kube/
+*.kubeconfig
+
+# Helm
+charts/*.tgz
+
+# Temporary / generated files
+*.tmp
+*.log
+*.bak
+*.swp
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
