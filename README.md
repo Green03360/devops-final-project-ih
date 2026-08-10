@@ -157,3 +157,4 @@ If you would like to study these concepts before the class or would benefit from
   CI/CD secrets added — triggering new workflow run.
 
 **Good luck!**
+Fix Docker Hub token scopes
