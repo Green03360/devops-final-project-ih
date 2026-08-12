@@ -22,6 +22,9 @@ spec:
           env:
             - name: DATABASE_URI
               value: "mongodb://root:example@mongo:27017"
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
             - name: REDIS_PASSWORD
               value: "someredispassword"
-

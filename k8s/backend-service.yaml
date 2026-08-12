@@ -9,5 +9,4 @@ spec:
     - protocol: TCP
       port: 8706
       targetPort: 8706
-  type: ClusterIP
-
+  type: LoadBalancer   # was: ClusterIP
