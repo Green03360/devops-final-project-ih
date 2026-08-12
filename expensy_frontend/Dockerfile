@@ -12,7 +12,6 @@ WORKDIR /app
 
 COPY --from=builder /app ./
 
-ENV NEXT_PUBLIC_API_URL=http://localhost:8706
 EXPOSE 3000
 
 CMD ["npm", "start"]

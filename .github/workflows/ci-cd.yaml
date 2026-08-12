@@ -53,3 +53,30 @@ jobs:
           push: true
           tags: ucgreen/expensy-frontend:latest
 
+  deploy:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set AKS context
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: green-rg-lab2
+          cluster-name: green-cluster-new
+
+      - name: Apply Kubernetes manifests
+        run: kubectl apply -f k8s/
+
+      - name: Roll out latest images
+        run: |
+          kubectl rollout restart deployment/expensy-backend
+          kubectl rollout restart deployment/expensy-frontend
+          kubectl rollout status deployment/expensy-backend
+          kubectl rollout status deployment/expensy-frontend
+
