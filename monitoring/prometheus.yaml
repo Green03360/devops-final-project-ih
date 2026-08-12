@@ -1,0 +1,248 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: monitoring
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/metrics
+      - services
+      - endpoints
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+
+  - nonResourceURLs:
+      - /metrics
+    verbs:
+      - get
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: monitoring
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+
+    scrape_configs:
+
+      # ==========================================
+      # PROMETHEUS
+      # ==========================================
+      - job_name: 'prometheus'
+
+        static_configs:
+          - targets:
+              - 'localhost:9090'
+
+
+      # ==========================================
+      # KUBERNETES KUBELET / NODE
+      # ==========================================
+      - job_name: 'kubernetes-kubelet'
+
+        scheme: https
+
+        tls_config:
+          insecure_skip_verify: true
+
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+        kubernetes_sd_configs:
+          - role: node
+
+
+      # ==========================================
+      # NODE EXPORTER
+      # ==========================================
+      - job_name: 'node-exporter'
+
+        kubernetes_sd_configs:
+          - role: pod
+
+        relabel_configs:
+
+          # Only node-exporter pods
+          - source_labels:
+              - __meta_kubernetes_pod_label_app
+            action: keep
+            regex: node-exporter
+
+          # Only monitoring namespace
+          - source_labels:
+              - __meta_kubernetes_namespace
+            action: keep
+            regex: monitoring
+
+          # Scrape node-exporter on port 9100
+          - source_labels:
+              - __meta_kubernetes_pod_ip
+            target_label: __address__
+            replacement: '${1}:9100'
+
+          # Add Kubernetes node name as a label
+          - source_labels:
+              - __meta_kubernetes_pod_node_name
+            target_label: node
+
+
+      # ==========================================
+      # EXPENSY PODS
+      # ==========================================
+      - job_name: 'kubernetes-pods'
+
+        kubernetes_sd_configs:
+          - role: pod
+
+        relabel_configs:
+
+          # Only pods in default namespace
+          - source_labels:
+              - __meta_kubernetes_namespace
+            action: keep
+            regex: default
+
+          # Only Expensy frontend/backend pods
+          - source_labels:
+              - __meta_kubernetes_pod_name
+            action: keep
+            regex: 'expensy-(frontend|backend)-.*'
+
+          # Add pod name as label
+          - source_labels:
+              - __meta_kubernetes_pod_name
+            target_label: pod
+
+          # Add namespace as label
+          - source_labels:
+              - __meta_kubernetes_namespace
+            target_label: namespace
+
+
+      # ==========================================
+      # EXPENSY SERVICES
+      # ==========================================
+      - job_name: 'kubernetes-services'
+
+        kubernetes_sd_configs:
+          - role: service
+
+        relabel_configs:
+
+          # Only default namespace
+          - source_labels:
+              - __meta_kubernetes_namespace
+            action: keep
+            regex: default
+
+          # Only Expensy services
+          - source_labels:
+              - __meta_kubernetes_service_name
+            action: keep
+            regex: 'expensy-(frontend|backend)'
+
+          # Add service name as label
+          - source_labels:
+              - __meta_kubernetes_service_name
+            target_label: service
+
+          # Add namespace
+          - source_labels:
+              - __meta_kubernetes_namespace
+            target_label: namespace
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: prometheus
+
+  template:
+    metadata:
+      labels:
+        app: prometheus
+
+    spec:
+      serviceAccountName: prometheus
+
+      containers:
+        - name: prometheus
+          image: prom/prometheus:latest
+
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+
+          ports:
+            - containerPort: 9090
+
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: prometheus-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app: prometheus
+
+  ports:
+    - port: 9090
+      targetPort: 9090

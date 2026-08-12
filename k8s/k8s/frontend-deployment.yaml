@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: expensy-frontend
+  labels:
+    app: expensy-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: expensy-frontend
+  template:
+    metadata:
+      labels:
+        app: expensy-frontend
+    spec:
+      containers:
+        - name: expensy-frontend
+          image: ucgreen/expensy-frontend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: "http://expensy-backend:8706"
